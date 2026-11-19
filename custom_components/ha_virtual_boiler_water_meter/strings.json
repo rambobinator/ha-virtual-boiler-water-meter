@@ -39,11 +39,5 @@
         }
       }
     }
-  },
-  "selector": {
-    "validate": {
-      "power": "Capteur de puissance (W/kW)",
-      "energy": "Capteur d'énergie cumulée (Wh/kWh)"
-    }
   }
 }

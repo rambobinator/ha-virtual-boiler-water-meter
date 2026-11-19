@@ -16,12 +16,6 @@ from homeassistant.helpers.selector import (
 )
 
 from .const import (
-    DEFAULT_CALIBRATION,
-    DEFAULT_COLD_TEMP,
-    DEFAULT_COP,
-    DEFAULT_STANDBY_LOSS,
-    DEFAULT_TANK_TEMP,
-    DOMAIN,
     CONF_CALIBRATION,
     CONF_COLD_TEMP_CONST,
     CONF_COLD_TEMP_SENSOR,
@@ -31,80 +25,90 @@ from .const import (
     CONF_STANDBY_LOSS,
     CONF_TANK_TEMP_CONST,
     CONF_TANK_TEMP_SENSOR,
+    DEFAULT_CALIBRATION,
+    DEFAULT_COLD_TEMP,
+    DEFAULT_COP,
+    DEFAULT_STANDBY_LOSS,
+    DEFAULT_TANK_TEMP,
+    DOMAIN,
 )
 
 SOURCE_TYPES = ["power", "energy"]
 
 
+def _optional_entity(key: str, user_input: dict):
+    """Build an optional entity key, pre-filled via suggested_value.
+
+    EntitySelector cannot be serialized with a non-entity ``default`` (e.g. an
+    empty string), which triggers a 400 when the form is rendered. The official
+    way to pre-fill an optional entity field is ``description.suggested_value``.
+    """
+    existing = user_input.get(key)
+    if existing:
+        return vol.Optional(key, description={"suggested_value": existing})
+    return vol.Optional(key)
+
+
 def _build_schema(user_input: dict, include_source: bool = True) -> vol.Schema:
     """Build configuration schema.
-    
+
     Args:
         user_input: User input dictionary with current values
         include_source: If False, excludes source type and sensor (for options flow)
     """
     schema_dict = {}
-    
+
     if include_source:
         schema_dict[vol.Required(
             CONF_SOURCE_TYPE, default=user_input.get(CONF_SOURCE_TYPE, "power")
         )] = SelectSelector(
             SelectSelectorConfig(
                 options=SOURCE_TYPES,
-                translation_key="source_type",
                 mode="dropdown",
             )
         )
-        schema_dict[vol.Required(
-            CONF_SOURCE_SENSOR, default=user_input.get(CONF_SOURCE_SENSOR)
-        )] = EntitySelector(
+        schema_dict[_optional_entity(CONF_SOURCE_SENSOR, user_input)] = EntitySelector(
             EntitySelectorConfig(domain="sensor", multiple=False)
         )
-    
+
     schema_dict.update({
-        vol.Optional(
-            CONF_TANK_TEMP_SENSOR,
-            default=user_input.get(CONF_TANK_TEMP_SENSOR, ""),
-        ): EntitySelector(
+        _optional_entity(CONF_TANK_TEMP_SENSOR, user_input): EntitySelector(
             EntitySelectorConfig(domain=["sensor", "water_heater"], multiple=False)
         ),
-        vol.Optional(
+        vol.Required(
             CONF_TANK_TEMP_CONST,
             default=user_input.get(CONF_TANK_TEMP_CONST, DEFAULT_TANK_TEMP),
         ): NumberSelector(
             NumberSelectorConfig(min=20, max=90, step=0.5, unit="°C")
         ),
-        vol.Optional(
-            CONF_COLD_TEMP_SENSOR,
-            default=user_input.get(CONF_COLD_TEMP_SENSOR, ""),
-        ): EntitySelector(
+        _optional_entity(CONF_COLD_TEMP_SENSOR, user_input): EntitySelector(
             EntitySelectorConfig(domain="sensor", multiple=False)
         ),
-        vol.Optional(
+        vol.Required(
             CONF_COLD_TEMP_CONST,
             default=user_input.get(CONF_COLD_TEMP_CONST, DEFAULT_COLD_TEMP),
         ): NumberSelector(
             NumberSelectorConfig(min=0, max=30, step=0.5, unit="°C")
         ),
-        vol.Optional(
+        vol.Required(
             CONF_STANDBY_LOSS,
             default=user_input.get(CONF_STANDBY_LOSS, DEFAULT_STANDBY_LOSS),
         ): NumberSelector(
             NumberSelectorConfig(min=0, max=5000, step=50, unit="Wh/day")
         ),
-        vol.Optional(
+        vol.Required(
             CONF_COP, default=user_input.get(CONF_COP, DEFAULT_COP)
         ): NumberSelector(
             NumberSelectorConfig(min=0.5, max=6, step=0.1)
         ),
-        vol.Optional(
+        vol.Required(
             CONF_CALIBRATION,
             default=user_input.get(CONF_CALIBRATION, DEFAULT_CALIBRATION),
         ): NumberSelector(
             NumberSelectorConfig(min=0.1, max=10, step=0.05)
         ),
     })
-    
+
     return vol.Schema(schema_dict)
 
 
