@@ -1,50 +1,54 @@
 # HA Virtual Boiler Water Meter
 
-[🇬🇧 English version](README.en.md)
+[🇫🇷 Version française](README.fr.md)
 
-Intégration [Home Assistant](https://www.home-assistant.io/) qui estime la **consommation d'eau chaude sanitaire (en m³)** à partir de l'énergie de chauffe du ballon d'eau chaude, sans compteur d'eau dédié. L'entité produite est directement utilisable dans la section **Eau** du tableau Énergie de Home Assistant.
+[Home Assistant](https://www.home-assistant.io/) integration that estimates **hot water consumption (in m³)** from the heating energy of a hot water tank, without a dedicated water meter. The generated entity can be directly used in the **Water** section of Home Assistant's Energy dashboard.
 
-## Principe
+## Principle
 
-Chauffer 1 litre d'eau de 1 °C requiert 1,163 Wh. L'énergie électrique de chauffe, corrigée des pertes en veille et du COP, donne donc le volume d'eau chaude tiré :
+Heating 1 litre of water by 1 °C requires 1.163 Wh. The electrical heating energy, corrected for standby losses and COP, gives the volume of hot water drawn:
 
 ```
-Volume (L) = (E_chauffe(Wh) − pertes(Wh)) × COP ÷ (1,163 × (T_ballon − T_eau_froide)) × calibration
+Volume (L) = (E_heating(Wh) − losses(Wh)) × COP ÷ (1.163 × (T_tank − T_cold_water)) × calibration
 ```
 
 ## Configuration
 
-Champs proposés dans le flux de configuration :
+Fields provided in the configuration flow:
 
-| Champ | Rôle | Défaut |
+| Field | Role | Default |
 |---|---|---|
-| Type de source | Capteur de **puissance** (l'intégration fait l'intégrale) ou d'**énergie cumulée** | puissance |
-| Capteur source | Ex. `sensor.chauffe_eau_5_1min` | obligatoire |
-| Température du ballon | Entité (capteur ou `water_heater.*`) ou constante | 45 °C |
-| Température d'eau froide | Entité ou constante (ajuster saisonnièrement) | 13 °C |
-| Pertes en veille | Wh/jour, déduit de la décroissance nocturne (ex. ~1 °C/h) | 0 |
-| COP | 1 = résistif ; 2–3 = thermodynamique | 1 |
-| Calibration | Facteur multiplicatif après comparaison avec un vrai compteur | 1 |
+| Source type | **Power** sensor (integration done by the add-on) or **cumulative energy** sensor | power |
+| Source sensor | E.g. `sensor.water_heater_5_1min` | required |
+| Tank temperature | Entity (sensor or `water_heater.*`) or constant | 45 °C |
+| Cold water temperature | Entity or constant (adjust seasonally) | 13 °C |
+| Standby losses | Wh/day, deduced from overnight decay (e.g. ~1 °C/h) | 0 |
+| COP | 1 = resistive; 2–3 = heat pump | 1 |
+| Calibration | Multiplicative factor after comparison with a real meter | 1 |
 
-## Installation (test local)
+## Installation (Local Testing)
 
-1. Copiez le dossier `custom_components/ha_virtual_boiler_water_meter/` dans `/config/custom_components/` de Home Assistant.
-2. Redémarrez Home Assistant.
-3. Paramètres → Appareils et services → **Ajouter une intégration** → cherchez « HA Virtual Boiler Water Meter ».
-4. Renseignez les champs, puis ajoutez l'entité `sensor.compteur_virtuel_eau_chaude` dans Tableaux de bord → Énergie → section Eau.
+1. Copy the `custom_components/ha_virtual_boiler_water_meter/` folder to `/config/custom_components/` in Home Assistant.
+2. Restart Home Assistant.
+3. Settings → Devices and Services → **Create Integration** → search for "HA Virtual Boiler Water Meter".
+4. Fill in the fields, then add the `sensor.virtual_hot_water_meter` entity to Dashboards → Energy → Water section.
 
-Pour l'estimation journalière, ajoutez dans `configuration.yaml` :
+For daily estimation, add to `configuration.yaml`:
 
 ```yaml
 utility_meter:
-  compteur_eau_chaude_journalier:
-    source: sensor.compteur_virtuel_eau_chaude
+  hot_water_meter_daily:
+    source: sensor.virtual_hot_water_meter
     cycle: daily
 ```
 
-## Précision et limites
+## Accuracy and Limitations
 
-- Précision typique : **±15–20 %** (température d'entrée estimée, stratification du ballon, lissage des pertes).
-- Prévu pour un chauffe-eau **résistif** ; pour un ballon thermodynamique, renseignez le COP (>1).
-- L'estimation est cumulative depuis l'installation ; utilisez `utility_meter` pour les périodes.
-- Ne remplace pas un compteur d'eau physique pour un usage facturable.
+- Typical accuracy: **±15–20 %** (estimated inlet temperature, tank stratification, loss smoothing).
+- Designed for **resistive** water heaters; for heat pump tanks, set the COP (>1).
+- Estimation is cumulative since installation; use `utility_meter` for time periods.
+- Does not replace a physical water meter for billing purposes.
+
+## License
+
+MIT — use, modify, republish freely.
