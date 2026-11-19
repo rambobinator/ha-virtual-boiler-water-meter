@@ -1,0 +1,43 @@
+{
+  "title": "HA Virtual Boiler Water Meter",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Estimate hot water via thermal balance",
+        "description": "Estimates hot water volume from the water heater's heating energy. L = E(Wh) x COP / (1.163 x (T_tank - T_cold)).",
+        "data": {
+          "source_type": "Source sensor type",
+          "source_sensor": "Source sensor (power or energy)",
+          "tank_temp_sensor": "Tank temperature sensor (optional)",
+          "tank_temp_const": "Default tank temperature (°C)",
+          "cold_temp_sensor": "Cold water temperature sensor (optional)",
+          "cold_temp_const": "Cold water temperature (°C)",
+          "standby_loss": "Standby heat loss (Wh/day)",
+          "cop": "COP (1 resistive, 2-3 heat pump)",
+          "calibration": "Calibration factor"
+        }
+      }
+    },
+    "error": {
+      "missing_source": "The source sensor is required."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Hot water estimator options",
+        "data": {
+          "source_type": "Source sensor type",
+          "source_sensor": "Source sensor (power or energy)",
+          "tank_temp_sensor": "Tank temperature sensor (optional)",
+          "tank_temp_const": "Default tank temperature (°C)",
+          "cold_temp_sensor": "Cold water temperature sensor (optional)",
+          "cold_temp_const": "Cold water temperature (°C)",
+          "standby_loss": "Standby heat loss (Wh/day)",
+          "cop": "COP",
+          "calibration": "Calibration factor"
+        }
+      }
+    }
+  }
+}

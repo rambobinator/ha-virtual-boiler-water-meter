@@ -1,0 +1,43 @@
+{
+  "title": "Compteur virtuel d'eau chaude",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Estimer l'eau chaude par bilan thermique",
+        "description": "Estime le volume d'eau chaude consommé à partir de l'énergie de chauffe du ballon. L = E(Wh) × COP ÷ (1,163 × (T_ballon − T_eau_froide)).",
+        "data": {
+          "source_type": "Type de capteur source",
+          "source_sensor": "Capteur source (puissance ou énergie)",
+          "tank_temp_sensor": "Capteur de température du ballon (optionnel)",
+          "tank_temp_const": "Température du ballon par défaut (°C)",
+          "cold_temp_sensor": "Capteur de température d'eau froide (optionnel)",
+          "cold_temp_const": "Température d'eau froide (°C)",
+          "standby_loss": "Pertes en veille (Wh/jour)",
+          "cop": "COP (1 = résistif, 2–3 = thermodynamique)",
+          "calibration": "Facteur de calibration"
+        }
+      }
+    },
+    "error": {
+      "missing_source": "Le capteur source est obligatoire."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options de l'estimateur d'eau chaude",
+        "data": {
+          "source_type": "Type de capteur source",
+          "source_sensor": "Capteur source (puissance ou énergie)",
+          "tank_temp_sensor": "Capteur de température du ballon (optionnel)",
+          "tank_temp_const": "Température du ballon par défaut (°C)",
+          "cold_temp_sensor": "Capteur de température d'eau froide (optionnel)",
+          "cold_temp_const": "Température d'eau froide (°C)",
+          "standby_loss": "Pertes en veille (Wh/jour)",
+          "cop": "COP",
+          "calibration": "Facteur de calibration"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "name": "HA Virtual Boiler Water Meter",
+  "render_readme": true,
+  "homeassistant": "min_version"
+}

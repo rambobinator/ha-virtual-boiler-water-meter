@@ -1,0 +1,12 @@
+{
+  "domain": "ha_virtual_boiler_water_meter",
+  "name": "HA Virtual Boiler Water Meter",
+  "codeowners": ["@rambobinator"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/rambobinator/ha-virtual-boiler-water-meter",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/rambobinator/ha-virtual-boiler-water-meter/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}
