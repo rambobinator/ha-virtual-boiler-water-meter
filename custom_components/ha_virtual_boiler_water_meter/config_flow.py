@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import voluptuous as vol
-
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers.selector import (
@@ -14,6 +12,7 @@ from homeassistant.helpers.selector import (
     SelectSelector,
     SelectSelectorConfig,
 )
+import voluptuous as vol
 
 from .const import (
     CONF_CALIBRATION,
@@ -145,7 +144,7 @@ class HotWaterEstimatorOptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_init(self, user_input=None):
         """Handle options editing.
-        
+
         Source type and sensor are immutable after creation to avoid
         resetting accumulators. Other parameters can be adjusted anytime.
         """
@@ -154,9 +153,9 @@ class HotWaterEstimatorOptionsFlow(config_entries.OptionsFlow):
             user_input[CONF_SOURCE_TYPE] = self.config_entry.data[CONF_SOURCE_TYPE]
             user_input[CONF_SOURCE_SENSOR] = self.config_entry.data[CONF_SOURCE_SENSOR]
             return self.async_create_entry(title="", data=user_input)
-        
+
         # Build schema excluding source type/entity (immutable after creation)
         schema_dict = dict(self.config_entry.data)
         schema = _build_schema(schema_dict, include_source=False)
-        
+
         return self.async_show_form(step_id="init", data_schema=schema)

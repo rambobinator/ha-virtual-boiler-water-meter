@@ -29,4 +29,5 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-profile = "black"
+combine-as-imports = true
+force-sort-within-sections = true

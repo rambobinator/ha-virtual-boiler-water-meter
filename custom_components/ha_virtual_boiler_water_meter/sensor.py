@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from homeassistant.components.sensor import (
     RestoreSensor,
@@ -46,7 +46,7 @@ _LOGGER = logging.getLogger(__name__)
 SCAN_INTERVAL = None  # event driven
 
 
-def _power_unit_to_wh_per_hour(unit: str) -> Optional[float]:
+def _power_unit_to_wh_per_hour(unit: str) -> float | None:
     """Return Wh per hour for a power unit, i.e. Wh for 1 hour at 1 unit."""
     unit = unit.lower()
     if unit in ("w", "watt"):
@@ -56,7 +56,7 @@ def _power_unit_to_wh_per_hour(unit: str) -> Optional[float]:
     return None
 
 
-def _energy_unit_to_wh(unit: str) -> Optional[float]:
+def _energy_unit_to_wh(unit: str) -> float | None:
     """Return Wh for an energy unit, i.e. Wh for 1 unit of energy."""
     unit = unit.lower()
     if unit in ("wh", "watt hour", "watthour", "watt-hour"):
@@ -104,7 +104,7 @@ class HotWaterEstimatorSensor(RestoreSensor):
 
         # cumulative energy, Wh (for power sources)
         self._energy_wh: float = 0.0
-        self._last_power: Optional[float] = None
+        self._last_power: float | None = None
         self._last_power_time: Any = None
         # cumulative standby allowance, Wh
         self._standby_allowance_wh: float = 0.0
@@ -193,7 +193,7 @@ class HotWaterEstimatorSensor(RestoreSensor):
         tank = self._tank_temp()
         cold = self._cold_temp()
         d_t = tank - cold
-        
+
         # Guard against invalid temperature configurations
         if d_t <= 0:
             _LOGGER.warning(
@@ -203,7 +203,7 @@ class HotWaterEstimatorSensor(RestoreSensor):
                 cold,
             )
             d_t = 1.0
-        
+
         useful_wh = self._energy_wh - self._standby_allowance_wh
         useful_wh = max(useful_wh, 0.0)
         # COP: heat delivered (Wh) = electrical Wh * COP
