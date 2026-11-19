@@ -78,7 +78,9 @@ def _build_schema(user_input: dict, include_source: bool = True) -> vol.Schema:
             CONF_TANK_TEMP_CONST,
             default=user_input.get(CONF_TANK_TEMP_CONST, DEFAULT_TANK_TEMP),
         ): NumberSelector(
-            NumberSelectorConfig(min=20, max=90, step=0.5, unit="°C")
+            NumberSelectorConfig(
+                min=20, max=90, step=0.5, unit_of_measurement="°C"
+            )
         ),
         _optional_entity(CONF_COLD_TEMP_SENSOR, user_input): EntitySelector(
             EntitySelectorConfig(domain="sensor", multiple=False)
@@ -87,13 +89,17 @@ def _build_schema(user_input: dict, include_source: bool = True) -> vol.Schema:
             CONF_COLD_TEMP_CONST,
             default=user_input.get(CONF_COLD_TEMP_CONST, DEFAULT_COLD_TEMP),
         ): NumberSelector(
-            NumberSelectorConfig(min=0, max=30, step=0.5, unit="°C")
+            NumberSelectorConfig(
+                min=0, max=30, step=0.5, unit_of_measurement="°C"
+            )
         ),
         vol.Required(
             CONF_STANDBY_LOSS,
             default=user_input.get(CONF_STANDBY_LOSS, DEFAULT_STANDBY_LOSS),
         ): NumberSelector(
-            NumberSelectorConfig(min=0, max=5000, step=50, unit="Wh/day")
+            NumberSelectorConfig(
+                min=0, max=5000, step=50, unit_of_measurement="Wh/day"
+            )
         ),
         vol.Required(
             CONF_COP, default=user_input.get(CONF_COP, DEFAULT_COP)
