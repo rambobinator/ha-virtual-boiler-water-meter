@@ -45,6 +45,9 @@ _LOGGER = logging.getLogger(__name__)
 
 SCAN_INTERVAL = None  # event driven
 
+# Ignore intervals larger than this (restarts, source unavailability, etc.).
+MAX_INTERVAL_SECONDS = 2 * 3600
+
 
 def _power_unit_to_wh_per_hour(unit: str) -> float | None:
     """Return Wh per hour for a power unit, i.e. Wh for 1 hour at 1 unit."""
@@ -76,7 +79,13 @@ async def async_setup_entry(
 
 
 class HotWaterEstimatorSensor(RestoreSensor):
-    """Estimate hot water volume (m3) from heating energy and thermal balance."""
+    """Estimate hot water volume (m3) from heating energy and thermal balance.
+
+    The volume is accumulated *incrementally*: each energy increment is converted
+    to litres using the temperature delta valid at the moment of heating, then
+    added to a dedicated accumulator that is never recomputed. This guarantees a
+    monotonically increasing value, as required by ``total_increasing``.
+    """
 
     _attr_device_class = SensorDeviceClass.WATER
     _attr_native_unit_of_measurement = UnitOfVolume.CUBIC_METERS
@@ -102,36 +111,52 @@ class HotWaterEstimatorSensor(RestoreSensor):
         self._cop: float = float(d.get(CONF_COP, 1.0))
         self._calibration: float = float(d.get(CONF_CALIBRATION, 1.0))
 
-        # cumulative energy, Wh (for power sources)
-        self._energy_wh: float = 0.0
-        self._last_power: float | None = None
-        self._last_power_time: Any = None
-        # cumulative standby allowance, Wh
-        self._standby_allowance_wh: float = 0.0
+        # The single source of truth: litres accumulated so far (monotonic).
+        self._cumulative_litres: float = 0.0
+
+        # Interval tracking for incremental integration.
+        self._last_power: float | None = None  # Wh per hour, for power sources
+        self._last_energy_wh: float | None = None  # counter anchor, for energy sources
         self._last_time: Any = None
 
         self._attr_name = self._name
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
-        # restore internal accumulators after a restart
+
+        # Restore the accumulator after a restart.
         if (last_state := await self.async_get_last_state()) is not None:
-            saved = last_state.attributes.get("energy_wh")
-            if saved is not None:
-                self._energy_wh = float(saved)
-            saved = last_state.attributes.get("standby_allowance_wh")
-            if saved is not None:
-                self._standby_allowance_wh = float(saved)
+            restored = last_state.attributes.get("cumulative_litres")
+            if restored is not None:
+                try:
+                    self._cumulative_litres = float(restored)
+                except (TypeError, ValueError):
+                    pass
+            elif last_state.state not in (None, STATE_UNKNOWN, STATE_UNAVAILABLE):
+                # Upgrade path from older versions without the attribute:
+                # continue from the last reported m3 value.
+                try:
+                    self._cumulative_litres = float(last_state.state) * 1000.0
+                except (TypeError, ValueError):
+                    pass
+
         self._last_time = dt_util.utcnow()
-        # initialize from the current source value if it is an energy counter
+        self._last_power = None
+
+        # Anchor the energy counter so the first delta after (re)start is zero,
+        # avoiding a spurious jump across downtime.
         cur = self._hass.states.get(self._source)
         if cur is not None and self._source_type == "energy":
             try:
-                factor = _energy_unit_to_wh(cur.attributes.get("unit_of_measurement", "kWh")) or 1.0
-                self._energy_wh = float(cur.state) * factor
+                factor = (
+                    _energy_unit_to_wh(cur.attributes.get("unit_of_measurement", "kWh"))
+                    or 1.0
+                )
+                self._last_energy_wh = float(cur.state) * factor
             except (TypeError, ValueError):
-                pass
-        self._compute()
+                self._last_energy_wh = None
+
+        self._attr_native_value = round(self._cumulative_litres / 1000.0, 4)
 
         async_track_state_change_event(
             self._hass, [self._source], self._on_source_change
@@ -156,8 +181,7 @@ class HotWaterEstimatorSensor(RestoreSensor):
             "source_type": self._source_type,
             "tank_temperature": self._tank_temp(),
             "cold_temperature": self._cold_temp(),
-            "energy_wh": round(self._energy_wh, 2),
-            "standby_allowance_wh": round(self._standby_allowance_wh, 2),
+            "cumulative_litres": round(self._cumulative_litres, 3),
             "cop": self._cop,
             "calibration": self._calibration,
         }
@@ -187,14 +211,11 @@ class HotWaterEstimatorSensor(RestoreSensor):
                     pass
         return self._cold_const
 
-    # --- main computation ---------------------------------------------
-    def _compute(self) -> None:
-        """Recompute native value (m3) from accumulated energy."""
+    def _delta_t(self) -> float:
+        """Current temperature delta, guarded against degenerate values."""
         tank = self._tank_temp()
         cold = self._cold_temp()
         d_t = tank - cold
-
-        # Guard against invalid temperature configurations
         if d_t <= 0:
             _LOGGER.warning(
                 "Tank temperature (%.1f°C) ≤ cold water temperature (%.1f°C). "
@@ -203,32 +224,67 @@ class HotWaterEstimatorSensor(RestoreSensor):
                 cold,
             )
             d_t = 1.0
+        return d_t
 
-        useful_wh = self._energy_wh - self._standby_allowance_wh
-        useful_wh = max(useful_wh, 0.0)
-        # COP: heat delivered (Wh) = electrical Wh * COP
-        heat_wh = useful_wh * self._cop
-        litres = heat_wh / (WATER_SPECIFIC_HEAT * d_t) * self._calibration
-        self._attr_native_value = round(max(litres, 0.0) / 1000.0, 4)
-
+    # --- incremental accumulation -------------------------------------
     @callback
     def _on_source_change(self, event: Event) -> None:
         new_state: State | None = event.data.get("new_state")
         now = dt_util.utcnow()
 
         if new_state is None or new_state.state in (STATE_UNKNOWN, STATE_UNAVAILABLE):
+            # Pause integration and reset anchors so we never integrate across the gap.
             self._last_power = None
+            self._last_time = now
             return
-
-        self._update_standby_allowance(now)
 
         try:
             value = float(new_state.state)
         except (TypeError, ValueError):
             return
 
+        interval_s = None
+        if self._last_time is not None:
+            interval_s = (now - self._last_time).total_seconds()
+
+        # 1) Energy increment (Wh) over this interval.
+        delta_wh = self._energy_increment(new_state, value, interval_s)
+
+        # 2) Deduct standby losses accrued over the same interval (clamped at 0).
+        if (
+            delta_wh > 0
+            and self._standby_wh_per_day > 0
+            and interval_s is not None
+            and 0 < interval_s < MAX_INTERVAL_SECONDS
+        ):
+            standby_wh = self._standby_wh_per_day * (interval_s / 86400.0)
+            usable_wh = max(delta_wh - standby_wh, 0.0)
+        else:
+            usable_wh = max(delta_wh, 0.0)
+
+        # 3) Convert only this increment to litres, using the *current* delta T.
+        if usable_wh > 0:
+            d_t = self._delta_t()
+            heat_wh = usable_wh * self._cop
+            delta_litres = heat_wh * self._calibration / (WATER_SPECIFIC_HEAT * d_t)
+            self._cumulative_litres += delta_litres
+            _LOGGER.debug(
+                "ΔE=%.2f Wh usable, ΔT=%.1f°C → +%.3f L (total %.3f L)",
+                usable_wh,
+                d_t,
+                delta_litres,
+                self._cumulative_litres,
+            )
+
+        self._last_time = now
+        self._attr_native_value = round(self._cumulative_litres / 1000.0, 4)
+        self.async_write_ha_state()
+
+    def _energy_increment(
+        self, new_state: State, value: float, interval_s: float | None
+    ) -> float:
+        """Return the energy delta (Wh) for this update, per source type."""
         if self._source_type == "energy":
-            # source is a cumulative energy counter: adopt its value directly
             unit_str = new_state.attributes.get("unit_of_measurement", "kWh")
             factor = _energy_unit_to_wh(unit_str)
             if factor is None:
@@ -238,64 +294,42 @@ class HotWaterEstimatorSensor(RestoreSensor):
                     self._source,
                 )
                 factor = 1.0
-            self._energy_wh = value * factor
-            _LOGGER.debug(
-                "Energy source updated: %.2f %s = %.2f Wh",
-                value,
-                unit_str,
-                self._energy_wh,
-            )
-        else:
-            # source is instantaneous power: integrate (left rule)
-            unit_str = new_state.attributes.get("unit_of_measurement", "W")
-            factor = _power_unit_to_wh_per_hour(unit_str)
-            if factor is None:
-                _LOGGER.warning(
-                    "Unknown power unit '%s' for %s, defaulting to 1.0",
-                    unit_str,
-                    self._source,
-                )
-                factor = 1.0
-            power_wh_per_hour = value * factor
-            if self._last_power is not None and self._last_power_time is not None:
-                hours = (now - self._last_power_time).total_seconds() / 3600.0
-                if 0 <= hours < 2.0:  # ignore huge gaps (restarts etc.)
-                    energy_added = self._last_power * hours
-                    self._energy_wh += energy_added
+            current_wh = value * factor
+            delta_wh = 0.0
+            if self._last_energy_wh is not None:
+                delta_wh = current_wh - self._last_energy_wh
+                if delta_wh < 0:
+                    # Counter reset: start accumulating again from here.
                     _LOGGER.debug(
-                        "Integrated power: %.2f W × %.4f h = %.2f Wh (cumulative: %.2f Wh)",
-                        self._last_power,
-                        hours,
-                        energy_added,
-                        self._energy_wh,
+                        "Energy counter reset detected (%.2f < %.2f Wh)",
+                        current_wh,
+                        self._last_energy_wh,
                     )
-                elif hours >= 2.0:
-                    _LOGGER.warning(
-                        "Large time gap (%.1f h) since last power reading, skipping integration",
-                        hours,
-                    )
-            self._last_power = power_wh_per_hour
-            self._last_power_time = now
+                    delta_wh = 0.0
+            self._last_energy_wh = current_wh
+            return delta_wh
 
-        self._compute()
-        self.async_write_ha_state()
+        # Instantaneous power source: integrate with the left Riemann rule.
+        unit_str = new_state.attributes.get("unit_of_measurement", "W")
+        factor = _power_unit_to_wh_per_hour(unit_str)
+        if factor is None:
+            _LOGGER.warning(
+                "Unknown power unit '%s' for %s, defaulting to 1.0",
+                unit_str,
+                self._source,
+            )
+            factor = 1.0
+        power_wh_per_hour = value * factor
 
-    def _update_standby_allowance(self, now) -> None:
-        """Accrue standby losses in Wh since startup (simple daily proration)."""
-        if self._last_time is None:
-            self._last_time = now
-            return
-        if self._standby_wh_per_day <= 0:
-            self._last_time = now
-            return
-        days = (now - self._last_time).total_seconds() / 86400.0
-        allowance_added = self._standby_wh_per_day * days
-        self._standby_allowance_wh += allowance_added
-        _LOGGER.debug(
-            "Standby allowance: %.2f Wh/day × %.4f days = %.2f Wh (cumulative: %.2f Wh)",
-            self._standby_wh_per_day,
-            days,
-            allowance_added,
-            self._standby_allowance_wh,
-        )
-        self._last_time = now
+        delta_wh = 0.0
+        if self._last_power is not None and interval_s is not None:
+            hours = interval_s / 3600.0
+            if 0 <= interval_s < MAX_INTERVAL_SECONDS:
+                delta_wh = self._last_power * hours
+            else:
+                _LOGGER.warning(
+                    "Large time gap (%.1f h) since last power reading, skipping integration",
+                    hours,
+                )
+        self._last_power = power_wh_per_hour
+        return delta_wh
