@@ -96,7 +96,8 @@ class HotWaterEstimatorSensor(RestoreSensor):
     def __init__(self, hass: HomeAssistant, entry) -> None:
         self._hass = hass
         self._entry = entry
-        d = entry.data
+        # Options (set via the reconfigure flow) override the initial data.
+        d = {**entry.data, **entry.options}
 
         self._attr_unique_id = f"{entry.entry_id}_hot_water"
         self._name = "Eau chaude estimée"

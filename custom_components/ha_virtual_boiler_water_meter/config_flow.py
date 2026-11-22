@@ -139,14 +139,15 @@ class HotWaterEstimatorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(config_entry):
-        return HotWaterEstimatorOptionsFlow(config_entry)
+        return HotWaterEstimatorOptionsFlow()
 
 
 class HotWaterEstimatorOptionsFlow(config_entries.OptionsFlow):
-    """Allow editing the parameters after creation."""
+    """Allow editing the parameters after creation.
 
-    def __init__(self, config_entry):
-        self.config_entry = config_entry
+    On recent Home Assistant versions ``config_entry`` is provided automatically
+    as a read-only property, so it must not be set in ``__init__``.
+    """
 
     async def async_step_init(self, user_input=None):
         """Handle options editing.
@@ -155,13 +156,13 @@ class HotWaterEstimatorOptionsFlow(config_entries.OptionsFlow):
         resetting accumulators. Other parameters can be adjusted anytime.
         """
         if user_input is not None:
-            # Preserve immutable source configuration
+            # Preserve immutable source configuration.
             user_input[CONF_SOURCE_TYPE] = self.config_entry.data[CONF_SOURCE_TYPE]
             user_input[CONF_SOURCE_SENSOR] = self.config_entry.data[CONF_SOURCE_SENSOR]
             return self.async_create_entry(title="", data=user_input)
 
-        # Build schema excluding source type/entity (immutable after creation)
-        schema_dict = dict(self.config_entry.data)
-        schema = _build_schema(schema_dict, include_source=False)
+        # Pre-fill from options if present, otherwise from the original data.
+        current = {**self.config_entry.data, **self.config_entry.options}
+        schema = _build_schema(current, include_source=False)
 
         return self.async_show_form(step_id="init", data_schema=schema)
