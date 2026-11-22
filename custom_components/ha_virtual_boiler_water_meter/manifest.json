@@ -1,6 +1,7 @@
 {
   "domain": "ha_virtual_boiler_water_meter",
   "name": "HA Virtual Boiler Water Meter",
+  "categories": ["water"],
   "codeowners": ["@rambobinator"],
   "config_flow": true,
   "dependencies": [],
