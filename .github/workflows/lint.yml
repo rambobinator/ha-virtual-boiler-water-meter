@@ -25,3 +25,6 @@ jobs:
 
       - name: Run Ruff check
         run: ruff check custom_components/
+
+      - name: Run Ruff format check
+        run: ruff format --check custom_components/
