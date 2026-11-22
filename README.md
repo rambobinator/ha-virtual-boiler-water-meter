@@ -4,6 +4,10 @@
 
 [Home Assistant](https://www.home-assistant.io/) integration that estimates **hot water consumption (in m³)** from the heating energy of a hot water tank, without a dedicated water meter. The generated entity can be directly used in the **Water** section of Home Assistant's Energy dashboard.
 
+![Water flow in the Energy dashboard, with the estimated hot water as a tracked consumer](https://raw.githubusercontent.com/rambobinator/ha-virtual-boiler-water-meter/main/docs/energy-dashboard-water-flow.png)
+
+*Example: the estimated hot water shown as a consumer in the Energy dashboard's water flow.*
+
 ## Principle
 
 Heating 1 litre of water by 1 °C requires 1.163 Wh. The electrical heating energy, corrected for standby losses and COP, gives the volume of hot water drawn:

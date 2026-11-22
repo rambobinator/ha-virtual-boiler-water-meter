@@ -4,6 +4,10 @@
 
 Intégration [Home Assistant](https://www.home-assistant.io/) qui estime la **consommation d'eau chaude sanitaire (en m³)** à partir de l'énergie de chauffe du ballon d'eau chaude, sans compteur d'eau dédié. L'entité produite est directement utilisable dans la section **Eau** du tableau Énergie de Home Assistant.
 
+![Flux d'eau du tableau Énergie, avec l'eau chaude estimée comme consommateur suivi](https://raw.githubusercontent.com/rambobinator/ha-virtual-boiler-water-meter/main/docs/energy-dashboard-water-flow.png)
+
+*Exemple : l'eau chaude estimée affichée comme consommateur dans le flux d'eau du tableau Énergie.*
+
 ## Principe
 
 Chauffer 1 litre d'eau de 1 °C requiert 1,163 Wh. L'énergie électrique de chauffe, corrigée des pertes en veille et du COP, donne donc le volume d'eau chaude tiré :
