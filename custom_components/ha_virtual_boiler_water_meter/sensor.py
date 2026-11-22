@@ -149,19 +149,14 @@ class HotWaterEstimatorSensor(RestoreSensor):
         cur = self._hass.states.get(self._source)
         if cur is not None and self._source_type == "energy":
             try:
-                factor = (
-                    _energy_unit_to_wh(cur.attributes.get("unit_of_measurement", "kWh"))
-                    or 1.0
-                )
+                factor = _energy_unit_to_wh(cur.attributes.get("unit_of_measurement", "kWh")) or 1.0
                 self._last_energy_wh = float(cur.state) * factor
             except (TypeError, ValueError):
                 self._last_energy_wh = None
 
         self._attr_native_value = round(self._cumulative_litres / 1000.0, 4)
 
-        async_track_state_change_event(
-            self._hass, [self._source], self._on_source_change
-        )
+        async_track_state_change_event(self._hass, [self._source], self._on_source_change)
 
     @property
     def name(self) -> str:
@@ -281,9 +276,7 @@ class HotWaterEstimatorSensor(RestoreSensor):
         self._attr_native_value = round(self._cumulative_litres / 1000.0, 4)
         self.async_write_ha_state()
 
-    def _energy_increment(
-        self, new_state: State, value: float, interval_s: float | None
-    ) -> float:
+    def _energy_increment(self, new_state: State, value: float, interval_s: float | None) -> float:
         """Return the energy delta (Wh) for this update, per source type."""
         if self._source_type == "energy":
             unit_str = new_state.attributes.get("unit_of_measurement", "kWh")

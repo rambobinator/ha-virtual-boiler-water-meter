@@ -58,9 +58,9 @@ def _build_schema(user_input: dict, include_source: bool = True) -> vol.Schema:
     schema_dict = {}
 
     if include_source:
-        schema_dict[vol.Required(
-            CONF_SOURCE_TYPE, default=user_input.get(CONF_SOURCE_TYPE, "power")
-        )] = SelectSelector(
+        schema_dict[
+            vol.Required(CONF_SOURCE_TYPE, default=user_input.get(CONF_SOURCE_TYPE, "power"))
+        ] = SelectSelector(
             SelectSelectorConfig(
                 options=SOURCE_TYPES,
                 mode="dropdown",
@@ -70,49 +70,41 @@ def _build_schema(user_input: dict, include_source: bool = True) -> vol.Schema:
             EntitySelectorConfig(domain="sensor", multiple=False)
         )
 
-    schema_dict.update({
-        _optional_entity(CONF_TANK_TEMP_SENSOR, user_input): EntitySelector(
-            EntitySelectorConfig(domain=["sensor", "water_heater"], multiple=False)
-        ),
-        vol.Required(
-            CONF_TANK_TEMP_CONST,
-            default=user_input.get(CONF_TANK_TEMP_CONST, DEFAULT_TANK_TEMP),
-        ): NumberSelector(
-            NumberSelectorConfig(
-                min=20, max=90, step=0.5, unit_of_measurement="°C"
-            )
-        ),
-        _optional_entity(CONF_COLD_TEMP_SENSOR, user_input): EntitySelector(
-            EntitySelectorConfig(domain="sensor", multiple=False)
-        ),
-        vol.Required(
-            CONF_COLD_TEMP_CONST,
-            default=user_input.get(CONF_COLD_TEMP_CONST, DEFAULT_COLD_TEMP),
-        ): NumberSelector(
-            NumberSelectorConfig(
-                min=0, max=30, step=0.5, unit_of_measurement="°C"
-            )
-        ),
-        vol.Required(
-            CONF_STANDBY_LOSS,
-            default=user_input.get(CONF_STANDBY_LOSS, DEFAULT_STANDBY_LOSS),
-        ): NumberSelector(
-            NumberSelectorConfig(
-                min=0, max=5000, step=50, unit_of_measurement="Wh/day"
-            )
-        ),
-        vol.Required(
-            CONF_COP, default=user_input.get(CONF_COP, DEFAULT_COP)
-        ): NumberSelector(
-            NumberSelectorConfig(min=0.5, max=6, step=0.1)
-        ),
-        vol.Required(
-            CONF_CALIBRATION,
-            default=user_input.get(CONF_CALIBRATION, DEFAULT_CALIBRATION),
-        ): NumberSelector(
-            NumberSelectorConfig(min=0.1, max=10, step=0.05)
-        ),
-    })
+    schema_dict.update(
+        {
+            _optional_entity(CONF_TANK_TEMP_SENSOR, user_input): EntitySelector(
+                EntitySelectorConfig(domain=["sensor", "water_heater"], multiple=False)
+            ),
+            vol.Required(
+                CONF_TANK_TEMP_CONST,
+                default=user_input.get(CONF_TANK_TEMP_CONST, DEFAULT_TANK_TEMP),
+            ): NumberSelector(
+                NumberSelectorConfig(min=20, max=90, step=0.5, unit_of_measurement="°C")
+            ),
+            _optional_entity(CONF_COLD_TEMP_SENSOR, user_input): EntitySelector(
+                EntitySelectorConfig(domain="sensor", multiple=False)
+            ),
+            vol.Required(
+                CONF_COLD_TEMP_CONST,
+                default=user_input.get(CONF_COLD_TEMP_CONST, DEFAULT_COLD_TEMP),
+            ): NumberSelector(
+                NumberSelectorConfig(min=0, max=30, step=0.5, unit_of_measurement="°C")
+            ),
+            vol.Required(
+                CONF_STANDBY_LOSS,
+                default=user_input.get(CONF_STANDBY_LOSS, DEFAULT_STANDBY_LOSS),
+            ): NumberSelector(
+                NumberSelectorConfig(min=0, max=5000, step=50, unit_of_measurement="Wh/day")
+            ),
+            vol.Required(CONF_COP, default=user_input.get(CONF_COP, DEFAULT_COP)): NumberSelector(
+                NumberSelectorConfig(min=0.5, max=6, step=0.1)
+            ),
+            vol.Required(
+                CONF_CALIBRATION,
+                default=user_input.get(CONF_CALIBRATION, DEFAULT_CALIBRATION),
+            ): NumberSelector(NumberSelectorConfig(min=0.1, max=10, step=0.05)),
+        }
+    )
 
     return vol.Schema(schema_dict)
 
@@ -129,9 +121,7 @@ class HotWaterEstimatorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if not user_input.get(CONF_SOURCE_SENSOR):
                 errors[CONF_SOURCE_SENSOR] = "missing_source"
             else:
-                return self.async_create_entry(
-                    title="Eau chaude estimée", data=user_input
-                )
+                return self.async_create_entry(title="Eau chaude estimée", data=user_input)
         return self.async_show_form(
             step_id="user", data_schema=_build_schema(user_input or {}), errors=errors
         )
